@@ -19,10 +19,10 @@ async def lifespan(app: FastAPI):
         hosts=[f"http://{settings.elastic_host}:{settings.elastic_port}"]
     )
     # Ждём готовности Elasticsearch
-    await wait_for_elastic(app.state.elastic, timeout=60)
+    # await wait_for_elastic(app.state.elastic, timeout=60)
     # await wait_for_index(app.state.elastic, "movies", timeout=60)
     # запускаем кэширование в фоне
-    asyncio.create_task(build_cache(app.state.elastic, app.state.redis))
+    # asyncio.create_task(build_cache(app.state.elastic, app.state.redis))
 
     yield  # здесь приложение доступно
 

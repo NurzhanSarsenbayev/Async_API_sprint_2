@@ -1,25 +1,78 @@
-@pytest_asyncio.fixture(scope='session')
-def event_loop():
-    loop = asyncio.get_event_loop()
-    yield loop
-    loop.close()
+# functional/conftest.py
+import json
+import os
+import redis.asyncio as aioredis
+import pytest_asyncio
+import aiohttp
+from elasticsearch import AsyncElasticsearch, helpers
 
-@pytest_asyncio.fixture(name='es_client', scope='session')
+from functional.testdata.es_mapping import MOVIES_MAPPING, MOVIES_INDEX
+
+
+# ---------- aiohttp session ----------
+@pytest_asyncio.fixture
+async def http_session():
+    session = aiohttp.ClientSession()
+    yield session
+    await session.close()
+
+
+# ---------- elasticsearch client ----------
+@pytest_asyncio.fixture(scope="session")
 async def es_client():
-    es_client = AsyncElasticsearch(hosts=test_settings.es_host, verify_certs=False)
-    yield es_client
-    await es_client.close()
+    client = AsyncElasticsearch(hosts=["http://elasticsearch:9200"])
+    yield client
+    await client.close()
+
+@pytest_asyncio.fixture(scope="session")
+async def redis_client():
+    host = os.getenv("REDIS_HOST", "redis")
+    port = int(os.getenv("REDIS_PORT", 6379))
+    client = await aioredis.from_url(f"redis://{host}:{port}", decode_responses=True)
+    yield client
+    await client.close()
+
+# ---------- prepare elasticsearch with data ----------
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def setup_es(es_client):
+    # пересоздаём индекс
+    if await es_client.indices.exists(index=MOVIES_INDEX):
+        await es_client.indices.delete(index=MOVIES_INDEX)
+
+    await es_client.indices.create(index=MOVIES_INDEX, body=MOVIES_MAPPING)
+
+    actions = []
+    with open("functional/testdata/test_data.json", "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+
+            doc = json.loads(line)
+
+            # поддерживаем оба варианта: экспорт из ES и "простой" json
+            doc_id = doc.get("_id") or doc.get("id") or doc.get("uuid")
+            source = doc.get("_source") or doc
+
+            if not doc_id:
+                raise ValueError(f"❌ Не найден ID в документе: {doc}")
+
+            actions.append({
+                "_index": MOVIES_INDEX,
+                "_id": doc_id,
+                "_source": source,
+            })
+
+    # bulk insert
+    if actions:
+        success, errors = await helpers.async_bulk(
+            es_client, actions, raise_on_error=False
+        )
+
+    # refresh
+    await es_client.indices.refresh(index=MOVIES_INDEX)
+
+    # проверка загрузки
+    count = await es_client.count(index=MOVIES_INDEX)
+    assert count["count"] > 0, "❌ Данные не загрузились в Elasticsearch"
 
 
-@pytest_asyncio.fixture(name='es_write_data')
-def es_write_data():
-    async def inner(data: list[dict]):
-        if await es_client.indices.exists(index=test_settings.es_index):
-            await es_client.indices.delete(index=test_settings.es_index)
-        await es_client.indices.create(index=test_settings.es_index, **MAPPING_MOVIES)
-
-        updated, errors = await async_bulk(client=es_client, actions=data)
-
-        if errors:
-            raise Exception('Ошибка записи данных в Elasticsearch')
-    return inner

@@ -1,15 +1,18 @@
+import os
 import time
 import redis
-import os
 
-if __name__ == '__main__':
-    redis_host = os.getenv("REDIS_HOST", "redis")
-    client = redis.Redis(host=redis_host, port=6379)
-    while True:
-        try:
-            client.ping()
-            print("✅ Redis is up!")
-            break
-        except redis.exceptions.ConnectionError:
-            print("⏳ Waiting for Redis...")
-            time.sleep(1)
+host = os.getenv("REDIS_HOST", "redis")
+port = int(os.getenv("REDIS_PORT", "6379"))
+
+for i in range(120):
+    try:
+        r = redis.Redis(host=host, port=port, decode_responses=True)
+        r.ping()
+        print("✅ Redis is ready")
+        break
+    except Exception as e:
+        print("Redis not ready yet:", repr(e))
+    time.sleep(1)
+else:
+    raise RuntimeError("Redis didn't start in time")
