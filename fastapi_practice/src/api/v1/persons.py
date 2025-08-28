@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from http import HTTPStatus
 from typing import List
@@ -55,7 +57,7 @@ async def search_persons(
 
 @router.get("/{person_id}", response_model=Person)
 async def person_details(
-    person_id: str,
+    person_id: UUID,
     person_service: PersonService = Depends(get_person_service)
 ):
     """
@@ -74,7 +76,7 @@ async def person_details(
     Примечание:
         Данные кэшируются в Redis для ускорения повторных запросов.
     """
-    person = await person_service.get_person_by_id(person_id)
+    person = await person_service.get_person_by_id(str(person_id))
     if not person:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,

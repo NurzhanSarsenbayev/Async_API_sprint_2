@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 from redis.asyncio import Redis
 
-from api.v1 import films,genres,persons
+from api.v1 import films,genres,persons,search
 from core.config import settings
 from services.cache_builder import build_cache, wait_for_elastic
 
@@ -43,6 +43,12 @@ app = FastAPI(
 
 # Подключаем роутер к серверу, указав префикс /v1/films
 # Теги указываем для удобства навигации по документации
+
+app.include_router(
+    search.router,
+    prefix="/api/v1/search",
+    tags=["search"]
+)
 
 # Роутер для фильмов
 app.include_router(

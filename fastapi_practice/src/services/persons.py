@@ -99,7 +99,7 @@ class PersonService:
         return [Person(uuid=uid,
                        full_name=name) for uid, name in limited_persons.items()]
 
-    async def get_person_by_id(self, person_id: str) -> Optional[Person]:
+    async def get_person_by_id(self, person_id: UUID) -> Optional[Person]:
         """
         Получение одной персоны по UUID с кэшированием.
         Дополнительно возвращает список фильмов, где персона участвовала.
@@ -114,9 +114,9 @@ class PersonService:
             "query": {
                 "bool": {
                     "should": [
-                        {"nested": {"path": "actors", "query": {"term": {"actors.uuid": person_id}}}},
-                        {"nested": {"path": "directors", "query": {"term": {"directors.uuid": person_id}}}},
-                        {"nested": {"path": "writers", "query": {"term": {"writers.uuid": person_id}}}}
+                        {"nested": {"path": "actors", "query": {"term": {"actors.uuid": str(person_id)}}}},
+                        {"nested": {"path": "directors", "query": {"term": {"directors.uuid": str(person_id)}}}},
+                        {"nested": {"path": "writers", "query": {"term": {"writers.uuid": str(person_id)}}}}
                     ]
                 },
             },
@@ -146,9 +146,9 @@ class PersonService:
             "query": {
                 "bool": {
                     "should": [
-                        {"nested": {"path": "actors", "query": {"term": {"actors.uuid": person_id}}}},
-                        {"nested": {"path": "writers", "query": {"term": {"writers.uuid": person_id}}}},
-                        {"nested": {"path": "directors", "query": {"term": {"directors.uuid": person_id}}}},
+                        {"nested": {"path": "actors", "query": {"term": {"actors.uuid": str(person_id)}}}},
+                        {"nested": {"path": "writers", "query": {"term": {"writers.uuid": str(person_id)}}}},
+                        {"nested": {"path": "directors", "query": {"term": {"directors.uuid": str(person_id)}}}},
                     ]
                 }
             },

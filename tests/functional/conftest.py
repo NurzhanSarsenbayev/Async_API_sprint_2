@@ -1,7 +1,8 @@
 # functional/conftest.py
+import asyncio
 import json
 import os
-import redis.asyncio as aioredis
+import redis.asyncio
 import pytest_asyncio
 import aiohttp
 from elasticsearch import AsyncElasticsearch, helpers
@@ -25,12 +26,18 @@ async def es_client():
     await client.close()
 
 @pytest_asyncio.fixture(scope="session")
-async def redis_client():
+def event_loop():
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
+@pytest_asyncio.fixture()
+async def redis_client(event_loop):
     host = os.getenv("REDIS_HOST", "redis")
     port = int(os.getenv("REDIS_PORT", 6379))
-    client = await aioredis.from_url(f"redis://{host}:{port}", decode_responses=True)
+    client = await redis.asyncio.from_url(f"redis://{host}:{port}", decode_responses=True)
     yield client
-    await client.close()
+    await client.aclose()
 
 # ---------- prepare elasticsearch with data ----------
 @pytest_asyncio.fixture(scope="session", autouse=True)

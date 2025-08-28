@@ -151,31 +151,37 @@ class GenreService:
 
         return result
 
-    async def get_genre_by_id(self, genre_id: str) -> Optional[Genre]:
-        """
-        Получение одного жанра по UUID с кэшированием.
+    async def get_genre_by_id(self, genre_id: UUID) -> Optional[Genre]:
+        cache_key = f"genre:{genre_id}"
 
-        :param genre_id: UUID жанра
-        :return: объект Genre или None, если не найден
-        :notes:
-            - Сначала ищет в кэше Redis.
-            - Если нет, делает запрос в Elasticsearch с term-фильтром по UUID.
-        """
-        genres_raw = await self.redis.get("genres_cache")
-        if genres_raw:
-            genres_dict = json.loads(genres_raw)
-            if genre_id in genres_dict:
-                return Genre(uuid=genre_id, name=genres_dict[genre_id])
+        # 1. Проверяем в Redis
+        cached = await self.redis.get(cache_key)
+        if cached:
+            return Genre.parse_raw(cached)
 
-        body = {"query": {"term": {"genres.uuid.keyword": genre_id}}, "size": 1}
+        # 2. Если нет в кеше → ищем в ES
+        body = {
+            "query": {
+                "bool": {
+                    "should": [{"nested": {"path": "genres", "query": {"term": {"genres.uuid": str(genre_id)}}}}]
+                }
+            },
+            "size": 1,
+        }
         result = await self.elastic.search(index="movies", body=body)
         hits = result["hits"]["hits"]
         if not hits:
             return None
+
         for g in hits[0]["_source"].get("genres", []):
-            if g["uuid"] == genre_id:
-                return Genre(**g)
+            if g["uuid"] == str(genre_id):
+                genre = Genre(**g)
+                # 3. Сохраняем в Redis
+                await self.redis.set(cache_key, genre.json())
+                return genre
+
         return None
+
 
 
 async def get_genre_service(request: Request) -> GenreService:
