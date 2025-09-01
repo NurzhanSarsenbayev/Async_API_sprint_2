@@ -15,6 +15,6 @@ async def fetch_film_by_id(service, film_uuid: UUID) -> Optional[Film]:
     resp = await service.get_by_id("movies", str(film_uuid))
     return parse_film(resp)
 
-async def fetch_short_film_by_name(service, query_str: str, size: int = 10):
-    resp = await service.search_index("movies", search_films_query(query_str, size))
+async def fetch_short_film_by_name(service, query_str: str, page: int = 1, size: int = 10):
+    resp = await service.search_index("movies", search_films_query(query_str,page, size))
     return [parse_film_short(doc) for doc in resp["hits"]["hits"]]

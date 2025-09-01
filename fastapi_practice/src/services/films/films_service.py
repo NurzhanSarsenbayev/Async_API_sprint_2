@@ -25,12 +25,12 @@ class FilmService(BaseService):
             deserializer=lambda cached: [FilmShort(**f) for f in cached],
         )
 
-    async def search_films(self, query_str: str, size: int = 50) -> List[FilmShort]:
-        cache_key = self.make_cache_key("search_films", query=query_str, size=size)
+    async def search_films(self, query_str: str, page: int = 1, size: int = 50) -> List[FilmShort]:
+        cache_key = self.make_cache_key("search_films", query=query_str, page=page, size=size)
 
         return await self.get_or_set_cache(
             cache_key,
-            fetch_fn=lambda: fetch_short_film_by_name(self, query_str, size),
+            fetch_fn=lambda: fetch_short_film_by_name(self, query_str, page, size),
             serializer=lambda films: [f.dict() for f in films],
             deserializer=lambda cached: [FilmShort(**f) for f in cached],
         )

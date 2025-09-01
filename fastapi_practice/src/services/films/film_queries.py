@@ -19,8 +19,9 @@ def film_by_id_query(film_id: UUID) -> dict:
         "size": 1,
     }
 
-def search_films_query(query_str: str, size: int = 50) -> dict:
+def search_films_query(query_str: str,page: int, size: int) -> dict:
     return {
+        "from": (page - 1) * size,
         "size": size,
         "_source": ["uuid", "title", "imdb_rating"],
         "query": {

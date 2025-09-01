@@ -15,12 +15,12 @@ class SearchService(BaseService):
         self.person_service = person_service
         self.genre_service = genre_service
 
-    async def search_all(self, query: str, size: int = 50) -> Dict[str, Any]:
-        cache_key = self.make_cache_key("search_all", query=query, size=size)
+    async def search_all(self, query: str, page: int = 1, size: int = 50) -> Dict[str, Any]:
+        cache_key = self.make_cache_key("search_all", query=query, page=page, size=size)
 
         return await self.get_or_set_cache(
             cache_key,
-            fetch_fn=lambda: fetch_search_all(self, query,size),
+            fetch_fn=lambda: fetch_search_all(self, query, page, size),
             serializer=lambda data: {
                 "films": [f.dict() for f in data["films"]],
                 "persons": [p.dict() for p in data["persons"]],

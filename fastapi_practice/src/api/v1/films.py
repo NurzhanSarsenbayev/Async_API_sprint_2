@@ -39,6 +39,7 @@ async def list_films(
 async def search_films(
     query: str = Query(...,min_length=1,
                        description="Строка для полнотекстового поиска по названию фильма"),
+    page: int = Query(1, ge=1, description="Номер страницы поиска"),
     size: int = Query(10, ge=1, description="Количество результатов поиска"),
     film_service: FilmService = Depends(get_film_service),
 ):
@@ -57,7 +58,7 @@ async def search_films(
     Примечание:
         Результаты поиска кэшируются в Redis для ускорения повторных запросов.
     """
-    return await film_service.search_films(query_str=query, size=size)
+    return await film_service.search_films(query_str=query, page=page, size=size)
 
 
 @router.get("/{film_id}", response_model=Film)
