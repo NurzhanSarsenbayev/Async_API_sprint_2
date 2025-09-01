@@ -29,7 +29,7 @@ async def test_search_limit_records(http_session: ClientSession):
 @pytest.mark.asyncio
 async def test_search_by_phrase(http_session: ClientSession):
     phrase = "Star Wars"
-    async with http_session.get(f"{BASE_URL}?query={phrase}&page=1&ize=5") as resp:
+    async with http_session.get(f"{BASE_URL}?query={phrase}&page=1&size=5") as resp:
         assert resp.status == 200
         data = await resp.json()
         # Проверяем, что хотя бы один результат содержит фразу

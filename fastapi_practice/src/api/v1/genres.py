@@ -5,8 +5,8 @@ from http import HTTPStatus
 from typing import List
 
 from models.genre import Genre
-from services.genres import GenreService, get_genre_service
-
+from services.genres.genres_service import GenreService
+from dependencies import get_genre_service
 router = APIRouter()
 
 
@@ -36,7 +36,7 @@ async def genres_list(
 
 @router.get("/search", response_model=List[Genre])
 async def search_genres(
-    query: str = Query(..., description="Поисковый запрос для жанров"),
+    query: str = Query(...,min_length=1, description="Поисковый запрос для жанров"),
     genre_service: GenreService = Depends(get_genre_service),
 ):
     """

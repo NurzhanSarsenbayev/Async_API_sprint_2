@@ -5,8 +5,8 @@ from http import HTTPStatus
 from typing import List
 
 from models.person import Person
-from services.persons import PersonService, get_person_service
-
+from services.persons.persons_service import PersonService
+from dependencies import get_person_service
 router = APIRouter()
 
 
@@ -36,7 +36,7 @@ async def persons_list(
 
 @router.get("/search", response_model=List[Person])
 async def search_persons(
-    query: str = Query(..., description="Поисковая строка для поиска персон"),
+    query: str = Query(...,min_length=1, description="Поисковая строка для поиска персон"),
     person_service: PersonService = Depends(get_person_service),
 ):
     """

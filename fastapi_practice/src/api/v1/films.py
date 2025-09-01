@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import List
 from uuid import UUID
 
-from services.films import FilmService, get_film_service
+from services.films.films_service import FilmService
+from dependencies import get_film_service
 from models.film import Film
 from models.film_short import FilmShort
 router = APIRouter()
@@ -36,7 +37,7 @@ async def list_films(
 
 @router.get("/search", response_model=List[FilmShort])
 async def search_films(
-    query: str = Query(...,
+    query: str = Query(...,min_length=1,
                        description="Строка для полнотекстового поиска по названию фильма"),
     size: int = Query(10, ge=1, description="Количество результатов поиска"),
     film_service: FilmService = Depends(get_film_service),

@@ -14,8 +14,8 @@ from services.cache_builder import build_cache, wait_for_elastic
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- startup ---
-    app.state.redis = Redis(host=settings.redis_host, port=settings.redis_port)
-    app.state.elastic = AsyncElasticsearch(
+    app.state.redis_storage = Redis(host=settings.redis_host, port=settings.redis_port)
+    app.state.es_storage = AsyncElasticsearch(
         hosts=[f"http://{settings.elastic_host}:{settings.elastic_port}"]
     )
     # Ждём готовности Elasticsearch
@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
     yield  # здесь приложение доступно
 
     # --- shutdown ---
-    await app.state.redis.close()
-    await app.state.elastic.close()
+    await app.state.redis_storage.close()
+    await app.state.es_storage.close()
 
 
 app = FastAPI(
