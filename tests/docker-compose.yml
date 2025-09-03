@@ -20,7 +20,7 @@ services:
     image: redis:7.2
     container_name: tests_redis
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -67,6 +67,7 @@ services:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - REDIS_HOST=redis
       - API_URL=http://api:8000
+      - PYTHONPATH=/app
     networks:
       - test_net
     command: ["pytest", "-v", "functional/src"]

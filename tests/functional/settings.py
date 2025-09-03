@@ -1,14 +1,29 @@
-from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
 class TestSettings(BaseSettings):
-    es_host: str = Field('http://localhost:9200', env='ELASTIC_HOST')
-    es_index: str = Field('movies', env='ELASTIC_INDEX')
-    #es_id_field: str = Field('uuid',  env='ELASTIC_ID_FIELD')
-    #es_index_mapping: dict = Field(..., env='ELASTIC_INDEX_MAPPING')
 
-    redis_host: str = Field('localhost', env='REDIS_HOST')
-    service_url: str = Field('http://localhost:8000', env='SERVICE_URL')
+    PROJECT_NAME: str = "movies"
 
-test_settings = TestSettings()
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+
+    ELASTIC_HOST: str = "elasticsearch"
+    ELASTIC_PORT: int = 9200
+    ELASTIC_INDEX: str = "movies"
+    ELASTIC_ID_FIELD: str = "uuid"
+
+    API_HOST: str = "tests_api"
+    API_PORT: int = 8000
+
+    # --- Backoff/wait params ---
+    WAIT_MAX_ATTEMPTS: int = 40
+    WAIT_BASE_DELAY: float = 0.25
+    WAIT_MAX_DELAY: float = 3.0
+
+    class Config:
+        env_prefix = "TEST_"
+        case_sensitive = False
+
+
+settings = TestSettings()

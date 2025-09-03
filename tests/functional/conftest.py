@@ -1,14 +1,17 @@
-# functional/conftest.py
 import asyncio
 import json
-import os
-import redis.asyncio
+import logging
+
+import redis.asyncio as redis
 import pytest_asyncio
 import aiohttp
 from elasticsearch import AsyncElasticsearch, helpers
 
-from functional.testdata.es_mapping import MOVIES_MAPPING, MOVIES_INDEX
+from functional.testdata.es_mapping import MOVIES_MAPPING
+from functional.settings import settings
 
+
+logger = logging.getLogger(__name__)
 
 # ---------- aiohttp session ----------
 @pytest_asyncio.fixture
@@ -21,7 +24,7 @@ async def http_session():
 # ---------- elasticsearch client ----------
 @pytest_asyncio.fixture(scope="session")
 async def es_client():
-    client = AsyncElasticsearch(hosts=["http://elasticsearch:9200"])
+    client = AsyncElasticsearch(hosts=[f"http://{settings.ELASTIC_HOST}:{settings.ELASTIC_PORT}"])
     yield client
     await client.close()
 
@@ -31,11 +34,14 @@ def event_loop():
     yield loop
     loop.close()
 
+
+# ---------- redis client ----------
 @pytest_asyncio.fixture()
 async def redis_client(event_loop):
-    host = os.getenv("REDIS_HOST", "redis")
-    port = int(os.getenv("REDIS_PORT", 6379))
-    client = await redis.asyncio.from_url(f"redis://{host}:{port}", decode_responses=True)
+    client = await redis.from_url(
+        f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+        decode_responses=True
+    )
     yield client
     await client.aclose()
 
@@ -43,10 +49,10 @@ async def redis_client(event_loop):
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def setup_es(es_client):
     # пересоздаём индекс
-    if await es_client.indices.exists(index=MOVIES_INDEX):
-        await es_client.indices.delete(index=MOVIES_INDEX)
+    if await es_client.indices.exists(index=settings.ELASTIC_INDEX):
+        await es_client.indices.delete(index=settings.ELASTIC_INDEX)
 
-    await es_client.indices.create(index=MOVIES_INDEX, body=MOVIES_MAPPING)
+    await es_client.indices.create(index=settings.ELASTIC_INDEX, body=MOVIES_MAPPING)
 
     actions = []
     with open("functional/testdata/test_data.json", "r", encoding="utf-8") as f:
@@ -61,25 +67,32 @@ async def setup_es(es_client):
             source = doc.get("_source") or doc
 
             if not doc_id:
+                logger.error(f"Не найден ID в документе: {doc}")
                 raise ValueError(f"❌ Не найден ID в документе: {doc}")
 
             actions.append({
-                "_index": MOVIES_INDEX,
+                "_index": settings.ELASTIC_INDEX,
                 "_id": doc_id,
                 "_source": source,
             })
 
-    # bulk insert
+    # bulk insert + refresh=wait_for
     if actions:
         success, errors = await helpers.async_bulk(
-            es_client, actions, raise_on_error=False
+            es_client,
+            actions,
+            raise_on_error=False,
+            refresh="wait_for"
         )
-
-    # refresh
-    await es_client.indices.refresh(index=MOVIES_INDEX)
+        if errors:
+            logger.warning(f"Ошибки при загрузке данных в ES: {errors}")
 
     # проверка загрузки
-    count = await es_client.count(index=MOVIES_INDEX)
+    count = await es_client.count(index=settings.ELASTIC_INDEX)
     assert count["count"] > 0, "❌ Данные не загрузились в Elasticsearch"
+    logger.info(f"Загружено {count['count']} документов в ES")
 
-
+@pytest_asyncio.fixture(scope="session")
+async def es_ready(setup_es):
+    # просто прокидываем флаг
+    return setup_es

@@ -47,7 +47,7 @@ http://localhost:8000/redoc
 
 1. Клонируйте репозиторий:
    ```bash
-   git clone https://github.com/NurzhanSarsenbayev/async-api-sprint_2.git
+   git clone https://github.com/NurzhanSarsenbayev/Async_API_sprint_2
    
 2. Создайте .env файл на основе примера (.env-example)
 

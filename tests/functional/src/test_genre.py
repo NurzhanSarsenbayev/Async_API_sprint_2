@@ -1,61 +1,80 @@
 import pytest
 import pytest_asyncio
 from aiohttp import ClientSession
-
-BASE_URL = "http://tests_api:8000/api/v1/genres/"
-
-@pytest.mark.asyncio
-async def test_genre_validation(http_session: ClientSession):
-    # невалидный UUID
-    async with http_session.get(f"{BASE_URL}123") as resp:
-        assert resp.status == 422  # ошибка валидации
-
-@pytest.mark.asyncio
-async def test_get_genre_by_id(http_session: ClientSession):
-    genre_id = "babf7031-6c46-4a02-aaf4-e3e17d948a82"   # Action
-    async with http_session.get(f"{BASE_URL}{genre_id}") as resp:
-        assert resp.status == 200
-        data = await resp.json()
-
-        assert "uuid" in data
-        assert "name" in data
-        assert data["uuid"] == genre_id
+from http import HTTPStatus
+from functional.settings import settings
 
 
 @pytest.mark.asyncio
-async def test_get_all_genres(http_session: ClientSession):
-    async with http_session.get(f"{BASE_URL}") as resp:
-        assert resp.status == 200
-        data = await resp.json()
-
-        assert isinstance(data, list)
-        assert len(data) > 0
-
-        genre = data[0]
-        assert "uuid" in genre
-        assert "name" in genre
+async def test_genre_validation(http_session: ClientSession, es_ready):
+    # Act
+    async with http_session.get(
+        f"http://{settings.API_HOST}:{settings.API_PORT}/api/v1/genres/123"
+    ) as resp:
+        # Assert
+        assert resp.status == HTTPStatus.UNPROCESSABLE_ENTITY
 
 
 @pytest.mark.asyncio
-async def test_genre_cache(redis_client, http_session: ClientSession):
-    """Проверяем, что ответ кешируется в Redis"""
+async def test_get_genre_by_id(http_session: ClientSession, es_ready):
+    # Arrange
     genre_id = "babf7031-6c46-4a02-aaf4-e3e17d948a82"
 
-    # Удалим ключ из редиса, чтобы проверить с нуля
+    # Act
+    async with http_session.get(
+        f"http://{settings.API_HOST}:{settings.API_PORT}/api/v1/genres/{genre_id}"
+    ) as resp:
+        data = await resp.json()
+
+    # Assert
+    assert resp.status == HTTPStatus.OK
+    assert "uuid" in data
+    assert "name" in data
+    assert data["uuid"] == genre_id
+
+
+@pytest.mark.asyncio
+async def test_get_all_genres(http_session: ClientSession, es_ready):
+    # Act
+    async with http_session.get(
+        f"http://{settings.API_HOST}:{settings.API_PORT}/api/v1/genres/"
+    ) as resp:
+        data = await resp.json()
+
+    # Assert
+    assert resp.status == HTTPStatus.OK
+    assert isinstance(data, list)
+    assert len(data) > 0
+
+    genre = data[0]
+    assert "uuid" in genre
+    assert "name" in genre
+
+
+@pytest.mark.asyncio
+async def test_genre_cache(redis_client, http_session: ClientSession, es_ready):
+    # Arrange
+    genre_id = "babf7031-6c46-4a02-aaf4-e3e17d948a82"
     await redis_client.flushall()
 
-    # Первый запрос — должен сходить в ES
-    async with http_session.get(f"{BASE_URL}{genre_id}") as resp:
-        assert resp.status == 200
-        data = await resp.json()
-        assert data["uuid"] == genre_id
+    # Act 1 (кэш пуст → идём в API/ES)
+    async with http_session.get(
+        f"http://{settings.API_HOST}:{settings.API_PORT}/api/v1/genres/{genre_id}"
+    ) as resp1:
+        data1 = await resp1.json()
 
-    # Проверяем, что в кэше появился ключ
+    # Assert 1
+    assert resp1.status == HTTPStatus.OK
+    assert data1["uuid"] == genre_id
     keys = await redis_client.keys("*")
     assert len(keys) > 0
 
-    # Второй запрос — данные должны вернуться из кэша
-    async with http_session.get(f"{BASE_URL}{genre_id}") as resp2:
-        assert resp2.status == 200
+    # Act 2 (кэш уже есть → возвращаем из Redis)
+    async with http_session.get(
+        f"http://{settings.API_HOST}:{settings.API_PORT}/api/v1/genres/{genre_id}"
+    ) as resp2:
         data2 = await resp2.json()
-        assert data2 == data  # ответ идентичен
+
+    # Assert 2
+    assert resp2.status == HTTPStatus.OK
+    assert data1 == data2
