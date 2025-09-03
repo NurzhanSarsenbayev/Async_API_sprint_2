@@ -49,7 +49,8 @@ http://localhost:8000/redoc
    ```bash
    git clone https://github.com/NurzhanSarsenbayev/Async_API_sprint_2
    
-2. Создайте .env файл на основе примера (.env-example)
+2. Создайте .env файл на основе примера (.env-example).
+   Надо создать .env для api (в корне проекта) и для test (в директории tests/)
 
 3. Запустите проект:
     cd tests -> перейдите в папку tests
